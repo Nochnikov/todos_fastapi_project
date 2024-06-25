@@ -8,7 +8,10 @@ from database import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Annotated
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/todos",
+    tags=["Todos"],
+)
 
 def get_db():
     db = SessionLocal()
