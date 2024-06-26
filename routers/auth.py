@@ -44,15 +44,15 @@ def authenticate_user(username: str, password: str, db: db_dependency):
     return user
 
 
-def create_access_token(username: str, user_id: int, expires_delta: timedelta = timedelta(minutes=20)):
+def create_access_token(username: str, user_id: int, role: str, expires_delta: timedelta = timedelta(minutes=20)):
 
-    encode = {"sub": username, "id": user_id, 'type': 'ACCESS'}
+    encode = {"sub": username, "id": user_id, 'type': 'ACCESS', 'role': role}
     expires = datetime.utcnow() + expires_delta
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(username: str, user_id: int, expires_delta: timedelta):
-    encode = {"sub": username, "id": user_id, 'type': 'REFRESH'}
+def create_refresh_token(username: str, user_id: int, role: str, expires_delta: timedelta):
+    encode = {"sub": username, "id": user_id, 'type': 'REFRESH', 'role': role}
     expires = datetime.utcnow() + expires_delta
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -84,13 +84,14 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
         token_type: str = payload.get("type")
+        user_role: str = payload.get("role")
 
         if token_type != "ACCESS":
             raise HTTPException(status_code=401, detail="Invalid token type")
         elif username is None or user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
-        return {'username': username, 'user_id': user_id}
+        return {'username': username, 'user_id': user_id, 'user_role': user_role}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
@@ -131,21 +132,22 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid username or password")
 
-    access_token = create_access_token(user.username, user.id)
-    refresh_token = create_refresh_token(user.username, user.id, timedelta(hours=24))
+    access_token = create_access_token(user.username, user.id, user.role)
+    refresh_token = create_refresh_token(user.username, user.id, user.role, timedelta(hours=24))
 
     return {"access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer"}
 
 @router.post("/refresh", response_model=Token, response_model_exclude_none=True)
-async def refresh_token(refresh_token: Annotated[str, Depends(oauth2_bearer)]):
+async def refresh_access_token(refresh_token: Annotated[str, Depends(oauth2_bearer)]):
     payload = verify_token(refresh_token)
 
     username = payload.get("sub")
     user_id = payload.get("id")
+    user_role = payload.get("role")
 
-    access_token = create_access_token(username, user_id)
+    access_token = create_access_token(username=username, user_id=user_id, user_role=user_role, expires_delta=timedelta(hours=24))
     return {
         "access_token": access_token,
         "token_type": "bearer"
