@@ -7,6 +7,7 @@ from models import Todos
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Annotated
+from .auth import get_current_user
 
 router = APIRouter(
     prefix="/todos",
@@ -22,7 +23,7 @@ def get_db():
 
 
 db_dependency = Annotated[Session, Depends(get_db)]
-
+user_dependency = Annotated[dict, Depends(get_current_user)]
 
 class Todo(BaseModel):
     title: str = Field(min_length=3)
@@ -31,8 +32,8 @@ class Todo(BaseModel):
     complete: bool
 
 @router.get("/", )
-async def read_all(db: db_dependency, status_code=status.HTTP_200_OK):
-    return db.query(Todos).all()
+async def read_all(user: user_dependency, db: db_dependency, status_code=status.HTTP_200_OK):
+    return db.query(Todos).filter(Todos.owner_id == user.get("id")).all()
 
 @router.get("/todo/{todo_id}", status_code=status.HTTP_200_OK)
 async def read_todo(db: db_dependency, todo_id: int = Path(gt=0)):
@@ -43,8 +44,12 @@ async def read_todo(db: db_dependency, todo_id: int = Path(gt=0)):
 
 
 @router.post("/todo", status_code=status.HTTP_201_CREATED)
-async def create_todo(db: db_dependency, todo: Todo):
-    todo_model = Todos(**todo.dict())
+async def create_todo(user:user_dependency,
+                      db: db_dependency,
+                      todo: Todo):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Authentication Failed')
+    todo_model = Todos(**todo.dict(), owner_id=user.get('id'))
     db.add(todo_model)
     db.commit()
 
