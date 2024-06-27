@@ -56,7 +56,6 @@ async def create_todo(user: user_dependency,
                       todo: Todo):
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Authentication Failed')
-    print(user.get('id'))
     todo_model = Todos(**todo.dict(), owner_id=user.get('user_id'))
     db.add(todo_model)
     db.commit()

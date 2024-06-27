@@ -35,7 +35,7 @@ def get_bd():
 db_dependency = Annotated[Session, Depends(get_bd)]
 
 def authenticate_user(username: str, password: str, db: db_dependency):
-    user = db.query(Users).filter( Users.username == username).first()
+    user = db.query(Users).filter(Users.username == username).first()
 
     if not user:
         return False
@@ -68,7 +68,8 @@ def verify_token(token: str):
         if token_type != 'REFRESH':
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Token is invalid")
         elif username is None or user_id is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token payload is missing required fields")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token payload is missing required "
+                                                                                "fields")
 
         return payload
     except JWTError:
