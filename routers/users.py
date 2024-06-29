@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from .auth import get_current_user
 from .auth import oauth2_bearer, SECRET_KEY, ALGORITHM
-from .auth import bcrypt_context, CreateUser
+from .auth import bcrypt_context
 def get_db():
     db = SessionLocal()
     try:
@@ -59,7 +59,20 @@ async def update_password(password: str, db: db_dependency, user: user_dependenc
     db.add(model)
     db.commit()
 
+@router.patch('/phone/update')
+async def update_phone(new_phone: str, db: db_dependency, user: user_dependency):
 
+    model = db.query(Users).filter(Users.id == user.get('user_id')).first()
+
+    if model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+    elif new_phone is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Phone cannot be null')
+
+    model.phone_number = new_phone
+
+    db.add(model)
+    db.commit()
 
 
 

@@ -15,7 +15,7 @@ http_bearer = HTTPBearer(auto_error=False)
 router = APIRouter(
     prefix="/auth",
     tags=["auth"],
-    dependencies=[Depends(http_bearer)]
+    # dependencies=[Depends(http_bearer)]
 )
 
 SECRET_KEY = 'f1752dc32e3fb604d66332c5148cbf9610dffeb86a9330c9a89fff2d4673b81d'
@@ -104,6 +104,8 @@ class CreateUser(BaseModel):
     last_name: str
     password: str
     role: str
+    phone_number: str
+
 
 class Token(BaseModel):
     access_token: str
@@ -119,7 +121,8 @@ async def create_user(user_create: CreateUser, db: db_dependency):
         last_name=user_create.last_name,
         role=user_create.role,
         hashed_password=bcrypt_context.hash(user_create.password),
-        is_active=True
+        is_active=True,
+        phone_number=user_create.phone_number,
     )
     db.add(created_user)
     db.commit()
@@ -132,6 +135,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid username or password")
+
 
     access_token = create_access_token(user.username, user.id, user.role)
     refresh_token = create_refresh_token(user.username, user.id, user.role, timedelta(hours=24))
