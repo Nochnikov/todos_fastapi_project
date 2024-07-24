@@ -2,8 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from jose import jwt
 from starlette import status
-from models import Users
-from database import SessionLocal
+from ..models import Users
+from ..database import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Annotated
 from .auth import get_current_user
