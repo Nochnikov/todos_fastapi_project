@@ -1,13 +1,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException
-from jose import jwt
+from pydantic import BaseModel
 from starlette import status
 from ..models import Users
 from ..database import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Annotated
 from .auth import get_current_user
-from .auth import oauth2_bearer, SECRET_KEY, ALGORITHM
 from .auth import bcrypt_context
 def get_db():
     db = SessionLocal()
@@ -26,40 +25,40 @@ router = APIRouter(
 )
 
 
-@router.get('/me')
-async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)], db: db_dependency):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get('id')
-        token_type = payload.get('type')
+@router.get('/me', status_code=200)
+async def get_current_user(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authenticated')
+    return db.query(Users).filter(Users.id == user.get('user_id')).first()
 
+class PasswordReset(BaseModel):
+    old_password: str
+    new_password: str
 
-        if user_id is None or token_type != "ACCESS":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+@router.patch('/update_password', status_code=204)
+async def update_password(passwords: PasswordReset, db: db_dependency, user: user_dependency):
 
-        user_data = db.query(Users).filter_by(id=user_id).first()
-        return user_data
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
-@router.patch('/update_password')
-async def update_password(password: str, db: db_dependency, user: user_dependency):
+    new_password = passwords.new_password
+    old_password = passwords.old_password
 
     model = db.query(Users).filter(Users.id == user.get('user_id')).first()
 
     if model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
 
-    if bcrypt_context.verify(password, model.hashed_password):
+    if not bcrypt_context.verify(old_password, model.hashed_password):
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="That's not your current password")
+
+    if bcrypt_context.verify(new_password, model.hashed_password):
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Passwords must not match')
 
-    model.hashed_password = bcrypt_context.encrypt(password)
+
+    model.hashed_password = bcrypt_context.hash(new_password)
 
     db.add(model)
     db.commit()
 
-@router.patch('/phone/update')
+@router.patch('/phone/update', status_code=204)
 async def update_phone(new_phone: str, db: db_dependency, user: user_dependency):
 
     model = db.query(Users).filter(Users.id == user.get('user_id')).first()
