@@ -47,7 +47,7 @@ async def update_password(passwords: PasswordReset, db: db_dependency, user: use
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
 
     if not bcrypt_context.verify(old_password, model.hashed_password):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="That's not your current password")
+        raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED, detail="That's not your current password")
 
     if bcrypt_context.verify(new_password, model.hashed_password):
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Passwords must not match')
@@ -58,15 +58,22 @@ async def update_password(passwords: PasswordReset, db: db_dependency, user: use
     db.add(model)
     db.commit()
 
+
+class PhoneRequest(BaseModel):
+    phone_number: str
+
 @router.patch('/phone/update', status_code=204)
-async def update_phone(new_phone: str, db: db_dependency, user: user_dependency):
+async def update_phone(request: PhoneRequest, db: db_dependency, user: user_dependency):
+
+    new_phone = request.phone_number
+
 
     model = db.query(Users).filter(Users.id == user.get('user_id')).first()
 
     if model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
     elif new_phone is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Phone cannot be null')
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Phone number cannot be null')
 
     model.phone_number = new_phone
 
