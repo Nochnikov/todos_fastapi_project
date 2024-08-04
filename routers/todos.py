@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from .auth import get_current_user
 from fastapi.responses import HTMLResponse
-from  fastapi.templating import Jinja2Templates
+from fastapi.templating import Jinja2Templates
 
 router = APIRouter(
     prefix="/todos",
@@ -40,8 +40,7 @@ class Todo(BaseModel):
 
 @router.get("/test")
 async def test(request: Request):
-
-    return templates.TemplateResponse("home.html", {"request": request})
+    return templates.TemplateResponse("register.html", {"request": request})
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def read_all(user: user_dependency, db: db_dependency):
